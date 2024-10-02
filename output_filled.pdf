@@ -1,0 +1,173 @@
+%PDF-1.3
+%‚„œ”
+1 0 obj
+<<
+/Type /Pages
+/Count 1
+/Kids [ 4 0 R ]
+>>
+endobj
+2 0 obj
+<<
+/Producer (PyPDF2)
+>>
+endobj
+3 0 obj
+<<
+/Type /Catalog
+/Pages 1 0 R
+>>
+endobj
+4 0 obj
+<<
+/Annots [ <<
+/DA (\057Helv\04012\040Tf\0400\040g)
+/FT /Tx
+/Rect [ 100 680 300 700 ]
+/T /name_field
+/V ()
+>> <<
+/DA (\057Helv\04012\040Tf\0400\040g)
+/FT /Tx
+/Rect [ 100 640 300 660 ]
+/T /email_field
+/V ()
+>> <<
+/DA (\057Helv\04012\040Tf\0400\040g)
+/FT /Tx
+/Rect [ 100 600 300 620 ]
+/T /date_field
+/V ()
+>> ]
+/Contents 5 0 R
+/Resources <<
+/Font <<
+/F1 6 0 R
+/F2 7 0 R
+/F166bebe58-0c95-4e57-b1a7-c3160cbd5a96 <<
+/BaseFont /Helvetica
+/Encoding /WinAnsiEncoding
+/Name /F1
+/Subtype /Type1
+/Type /Font
+>>
+>>
+/ProcSet [ /ImageC /PDF /ImageB /Text /ImageI ]
+>>
+/Type /Page
+/MediaBox [ 0 0 595.28 841.89 ]
+/Parent 1 0 R
+>>
+endobj
+5 0 obj
+<<
+/Length 593
+>>
+stream
+q
+2 J
+0.57 w
+BT
+/F1 12 Tf
+ET
+BT
+242.63 795.77 Td
+(PDF\040Form\040Example) Tj
+ET
+BT
+/F2 10 Tf
+ET
+BT
+31.19 768.02 Td
+(Please\040fill\040out\040the\040form\040below\072) Tj
+ET
+BT
+31.19 739.67 Td
+(Name\072) Tj
+ET
+BT
+31.19 682.98 Td
+(Email\072) Tj
+ET
+BT
+31.19 626.29 Td
+(Date\072) Tj
+ET
+Q
+q
+0 0 612 792 re
+W
+n
+1 0 0 1 0 0 cm
+BT
+/F166bebe58-0c95-4e57-b1a7-c3160cbd5a96 12 Tf
+14.4 TL
+ET
+BT
+/F166bebe58-0c95-4e57-b1a7-c3160cbd5a96 12 Tf
+14.4 TL
+ET
+BT
+1 0 0 1 150 700 Tm
+(John\040Doe) Tj
+T*
+ET
+BT
+1 0 0 1 150 650 Tm
+(john\100example\056com) Tj
+T*
+ET
+BT
+1 0 0 1 150 600 Tm
+(2024\05509\05530) Tj
+T*
+ET
+Q
+
+endstream
+endobj
+6 0 obj
+<<
+/BaseFont /Helvetica-Bold
+/Encoding /WinAnsiEncoding
+/Subtype /Type1
+/Type /Font
+>>
+endobj
+7 0 obj
+<<
+/BaseFont /Helvetica
+/Encoding /WinAnsiEncoding
+/Subtype /Type1
+/Type /Font
+>>
+endobj
+8 0 obj
+<<
+/BaseFont /Helvetica
+/Encoding /WinAnsiEncoding
+/Name /F1
+/Subtype /Type1
+/Type /Font
+>>
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000015 00000 n 
+0000000074 00000 n 
+0000000114 00000 n 
+0000000163 00000 n 
+0000000794 00000 n 
+0000001438 00000 n 
+0000001540 00000 n 
+0000001637 00000 n 
+trailer
+<<
+/Size 9
+/Root 3 0 R
+/Info 2 0 R
+>>
+startxref
+1744
+%%EOF
