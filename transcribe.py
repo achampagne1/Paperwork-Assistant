@@ -4,8 +4,16 @@ from pydub import AudioSegment
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from PyPDF2 import PdfReader, PdfWriter
+from pdfminer.high_level import extract_pages
+from pdfminer.layout import LTTextBox, LTChar
+import spacy
 
-# convert mp3 file to wav      
+nlp = spacy.load("en_core_web_sm")
+
+def extractInformation(text, label):
+    doc = nlp(text)
+    info = [ent.text for ent in doc.ents if ent.label_ == label]
+    return info
 
 def transcribeAudio(audioFilePath):                                                 
     sound = AudioSegment.from_mp3(audioFilePath)
@@ -23,21 +31,24 @@ def transcribeAudio(audioFilePath):
         return r.recognize_google(audio)
 
 
-def add_text_to_pdf(input_pdf_path, output_pdf_path, data_dict, transcript):
+def add_text_to_pdf(inputPdfPath, output_pdf_path, transcript):
     # Create a temporary PDF with the text to overlay
     temp_pdf_path = "temp_overlay.pdf"
     c = canvas.Canvas(temp_pdf_path, pagesize=letter)
     
     # Write the data (coordinates need to be adjusted based on the PDF layout)
     c.setFont("Helvetica", 12)
-    c.drawString(150, 700,transcript)  # Coordinates for Name
-    c.drawString(150, 650, data_dict.get("email", ""))  # Coordinates for Email
-    c.drawString(150, 600, data_dict.get("date", ""))   # Coordinates for Date
+    name = extractInformation(transcript,"PERSON")
+    c.drawString(150, 700,name[0])  # Coordinates for Name
+
+    places = extractInformation(transcript,"GPE")
+    for place in places:
+        c.drawString(500, 700,place)  # Coordinates for Name
     
     c.save()
 
     # Read the original PDF
-    reader = PdfReader(input_pdf_path)
+    reader = PdfReader(inputPdfPath)
     writer = PdfWriter()
 
     # Read the overlay PDF
@@ -55,10 +66,4 @@ def add_text_to_pdf(input_pdf_path, output_pdf_path, data_dict, transcript):
     with open(output_pdf_path, "wb") as output_pdf:
         writer.write(output_pdf)
 
-# Example usage
-data = {
-    "name": "John Doe",
-    "email": "john@example.com",
-    "date": "2024-09-30"
-}
-add_text_to_pdf("input_form.pdf", "output_filled.pdf", data, transcribeAudio("transcript.wav"))
+add_text_to_pdf("IntroductoryForm.pdf", "output_filled.pdf", transcribeAudio("transcript.mp3"))
