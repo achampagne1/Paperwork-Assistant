@@ -11,6 +11,11 @@ import fitz  # PyMuPDF
 
 nlp = spacy.load("en_core_web_sm")
 
+def getLocationOfText(textToFind, listOfText):
+    for textAndLocation in listOfText:
+        if textAndLocation[0] == textToFind:
+            return (textAndLocation[1][2],textAndLocation[1][3])
+
 def extractInformation(text, label):
     doc = nlp(text)
     info = [ent.text for ent in doc.ents if ent.label_ == label]
@@ -36,25 +41,23 @@ def findLocationOfAllText(filePath):
     for block in textInstances['blocks']:
         for line in block['lines']:
             for span in line['spans']:
-                text = span['text']  # The actual text
-                bbox = span['bbox']  # The bounding box (x0, y0, x1, y1)
-                tempList = (text,bbox)
+                tempList = (span['text'],span['bbox'])
                 allWords.append(tempList)
     return allWords
 
 
 
 def add_text_to_pdf(inputPdfPath, output_pdf_path, transcript):
-    print(findLocationOfAllText(inputPdfPath))
+    tagsAndLocations = findLocationOfAllText(inputPdfPath)
     temp_pdf_path = "temp_overlay.pdf"
     c = canvas.Canvas(temp_pdf_path, pagesize=letter)
     
 
     c.setFont("Helvetica", 12)
-    c.drawString(107, 795-141.339111328125,"name[0]") 
     name = extractInformation(transcript,"PERSON")
     if name:
-        c.drawString(150, 200,name[0]) 
+        tempList = getLocationOfText("Name:",tagsAndLocations)
+        c.drawString(tempList[0],795-tempList[1],name[0]) 
 
     age = extractInformation(transcript,"CARDINAL")
     if age:
@@ -88,4 +91,5 @@ def add_text_to_pdf(inputPdfPath, output_pdf_path, transcript):
     with open(output_pdf_path, "wb") as output_pdf:
         writer.write(output_pdf)
 
-add_text_to_pdf("IntroductoryForm.pdf", "output_filled.pdf", transcribeAudio("transcript.mp3"))
+userInput = input("Enter file input file name: ")
+add_text_to_pdf(userInput, "output_filled.pdf", transcribeAudio("transcript.mp3"))
