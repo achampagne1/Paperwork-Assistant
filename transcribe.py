@@ -10,6 +10,34 @@ import spacy
 import fitz  # PyMuPDF
 
 nlp = spacy.load("en_core_web_sm")
+rightShift = 5
+
+labelLookUpTable = {
+    "name:": "PERSON",
+    "name": "PERSON",
+    "location:": "PERSON",
+    "location": "PERSON",
+    "age:": "PERSON",
+    "age": "PERSON",
+}
+
+def labelLookUpTableWrapper(inputString):
+    inputString = inputString.lower()
+    label = ""
+    try:
+        label = labelLookUpTable[inputString]
+    except KeyError:
+        label = getNerLabel(inputString)
+    return label
+
+def getNerLabel(text):
+    doc = nlp(text)
+    
+    if doc.ents:
+        for ent in doc.ents:
+            return ent.label_
+    else:
+        return "No entity found"
 
 def getLocationOfText(textToFind, listOfText):
     for textAndLocation in listOfText:
@@ -54,21 +82,23 @@ def add_text_to_pdf(inputPdfPath, output_pdf_path, transcript):
     
 
     c.setFont("Helvetica", 12)
-    name = extractInformation(transcript,"PERSON")
+    name = extractInformation(transcript,labelLookUpTableWrapper(tagsAndLocations[1][0]))
     if name:
         tempList = getLocationOfText("Name:",tagsAndLocations)
-        c.drawString(tempList[0],795-tempList[1],name[0]) 
+        c.drawString(tempList[0]+rightShift,795-tempList[1],name[0]) 
 
     age = extractInformation(transcript,"CARDINAL")
     if age:
-        c.drawString(150, 300,age[0]) 
+        tempList = getLocationOfText("Age:",tagsAndLocations)
+        c.drawString(tempList[0]+rightShift,795-tempList[1],age[0]) 
 
     places = extractInformation(transcript,"GPE")
     fullPlace = ""
     if places:
         for place in places:
             fullPlace = fullPlace + place + " "
-        c.drawString(150, 400,fullPlace) 
+        tempList = getLocationOfText("Location:",tagsAndLocations)
+        c.drawString(tempList[0]+rightShift,795-tempList[1],fullPlace) 
     
     c.save()
 
