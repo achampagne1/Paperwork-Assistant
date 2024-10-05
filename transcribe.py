@@ -15,10 +15,10 @@ rightShift = 5
 labelLookUpTable = {
     "name:": "PERSON",
     "name": "PERSON",
-    "location:": "PERSON",
-    "location": "PERSON",
-    "age:": "PERSON",
-    "age": "PERSON",
+    "location:": "GPE",
+    "location": "GPE",
+    "age:": "CARDINAL",
+    "age": "CARDINAL",
 }
 
 def labelLookUpTableWrapper(inputString):
@@ -80,26 +80,38 @@ def add_text_to_pdf(inputPdfPath, output_pdf_path, transcript):
     temp_pdf_path = "temp_overlay.pdf"
     c = canvas.Canvas(temp_pdf_path, pagesize=letter)
     
+    # turn this into a loop
+    #c.setFont("Helvetica", 12)
+    #name = extractInformation(transcript,labelLookUpTableWrapper(tagsAndLocations[1][0])) #complete
+    #if name:
+    #    tempList = getLocationOfText("Name:",tagsAndLocations)
+    #    c.drawString(tempList[0]+rightShift,795-tempList[1],name[0]) 
 
-    c.setFont("Helvetica", 12)
-    name = extractInformation(transcript,labelLookUpTableWrapper(tagsAndLocations[1][0]))
-    if name:
-        tempList = getLocationOfText("Name:",tagsAndLocations)
-        c.drawString(tempList[0]+rightShift,795-tempList[1],name[0]) 
+    #age = extractInformation(transcript,"CARDINAL")
+    #if age:
+    #    tempList = getLocationOfText("Age:",tagsAndLocations)
+    #    c.drawString(tempList[0]+rightShift,795-tempList[1],age[0]) 
 
-    age = extractInformation(transcript,"CARDINAL")
-    if age:
-        tempList = getLocationOfText("Age:",tagsAndLocations)
-        c.drawString(tempList[0]+rightShift,795-tempList[1],age[0]) 
+    #places = extractInformation(transcript,"GPE")
+    #fullPlace = ""
+    #if places:
+    #    for place in places:
+    #        fullPlace = fullPlace + place + " "
+    #    tempList = getLocationOfText("Location:",tagsAndLocations)
+    #    c.drawString(tempList[0]+rightShift,795-tempList[1],fullPlace) 
+    #end of loop
 
-    places = extractInformation(transcript,"GPE")
-    fullPlace = ""
-    if places:
-        for place in places:
-            fullPlace = fullPlace + place + " "
-        tempList = getLocationOfText("Location:",tagsAndLocations)
-        c.drawString(tempList[0]+rightShift,795-tempList[1],fullPlace) 
-    
+    for tagAndLocation in tagsAndLocations:
+        fullInformation = ""
+        #for extracting the information from the transcript
+        print(labelLookUpTableWrapper(tagAndLocation[0]))
+        infos = extractInformation(transcript,labelLookUpTableWrapper(tagAndLocation[0]))
+        if infos:
+            for info in infos:
+                fullInformation = fullInformation + info + " "
+        
+        #for finding the right location
+        c.drawString(tagAndLocation[1][2]+rightShift,795-tagAndLocation[1][3],fullInformation) 
     c.save()
 
 
@@ -122,4 +134,6 @@ def add_text_to_pdf(inputPdfPath, output_pdf_path, transcript):
         writer.write(output_pdf)
 
 userInput = input("Enter file input file name: ")
+if userInput == "":
+    userInput = "testForm1.pdf"
 add_text_to_pdf(userInput, "output_filled.pdf", transcribeAudio("transcript.mp3"))
