@@ -17,7 +17,7 @@ labelLookUpTable = {
     "location": "GPE",
     "age": "CARDINAL",
     "nationality": "NORP",
-    "favorite food": "PRODUCT",
+    "food": "PRODUCT",
     "date": "DATE"
 }
 
