@@ -13,19 +13,21 @@ nlp = spacy.load("en_core_web_sm")
 rightShift = 5
 
 labelLookUpTable = {
-    "name:": "PERSON",
     "name": "PERSON",
-    "location:": "GPE",
     "location": "GPE",
-    "age:": "CARDINAL",
     "age": "CARDINAL",
+    "nationality": "NORP",
+    "favorite food": "PRODUCT",
+    "date": "DATE"
 }
 
 def labelLookUpTableWrapper(inputString):
     inputString = inputString.lower()
     label = ""
     try:
-        label = labelLookUpTable[inputString]
+        for word in labelLookUpTable.keys():
+            if word in inputString:
+                label = labelLookUpTable[word]
     except KeyError:
         label = getNerLabel(inputString)
     return label
@@ -67,10 +69,11 @@ def findLocationOfAllText(filePath):
     textInstances = page.get_text("dict")
 
     for block in textInstances['blocks']:
-        for line in block['lines']:
-            for span in line['spans']:
-                tempList = (span['text'],span['bbox'])
-                allWords.append(tempList)
+        if 'lines' in block:
+            for line in block['lines']:
+                for span in line['spans']:
+                    tempList = (span['text'],span['bbox'])
+                    allWords.append(tempList)
     return allWords
 
 
@@ -79,32 +82,10 @@ def add_text_to_pdf(inputPdfPath, output_pdf_path, transcript):
     tagsAndLocations = findLocationOfAllText(inputPdfPath)
     temp_pdf_path = "temp_overlay.pdf"
     c = canvas.Canvas(temp_pdf_path, pagesize=letter)
-    
-    # turn this into a loop
-    #c.setFont("Helvetica", 12)
-    #name = extractInformation(transcript,labelLookUpTableWrapper(tagsAndLocations[1][0])) #complete
-    #if name:
-    #    tempList = getLocationOfText("Name:",tagsAndLocations)
-    #    c.drawString(tempList[0]+rightShift,795-tempList[1],name[0]) 
-
-    #age = extractInformation(transcript,"CARDINAL")
-    #if age:
-    #    tempList = getLocationOfText("Age:",tagsAndLocations)
-    #    c.drawString(tempList[0]+rightShift,795-tempList[1],age[0]) 
-
-    #places = extractInformation(transcript,"GPE")
-    #fullPlace = ""
-    #if places:
-    #    for place in places:
-    #        fullPlace = fullPlace + place + " "
-    #    tempList = getLocationOfText("Location:",tagsAndLocations)
-    #    c.drawString(tempList[0]+rightShift,795-tempList[1],fullPlace) 
-    #end of loop
 
     for tagAndLocation in tagsAndLocations:
         fullInformation = ""
         #for extracting the information from the transcript
-        print(labelLookUpTableWrapper(tagAndLocation[0]))
         infos = extractInformation(transcript,labelLookUpTableWrapper(tagAndLocation[0]))
         if infos:
             for info in infos:
