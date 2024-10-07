@@ -1,4 +1,5 @@
 import spacy
+
 # Load the fine-tuned model
 nlp = spacy.load("en_core_web_sm_with_medical_terminology")
 
@@ -7,7 +8,9 @@ test_texts = [
     "John Doe was diagnosed with diabetes.",
     "Jane Smith has hypertension.",
     "The patient was treated for pneumonia.",
-    "Dr. Green prescribes medication for asthma."
+    "Dr. Green prescribes medication for Hepatitis.",
+    "Enter your name:",
+    "what is your birthday"
 ]
 
 for text in test_texts:
