@@ -8,9 +8,9 @@ test_texts = [
     "John Doe was diagnosed with diabetes.",
     "Jane Smith has hypertension.",
     "The patient was treated for pneumonia.",
-    "Dr. Green prescribes medication for Hepatitis.",
-    "Enter your name:",
-    "what is your birthday"
+    "Dr. Green prescribes medication for heart disease.",
+    "today is October 7th"
+    "I like Amazon"
 ]
 
 for text in test_texts:

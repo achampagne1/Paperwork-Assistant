@@ -8,8 +8,11 @@ from pdfminer.high_level import extract_pages
 from pdfminer.layout import LTTextBox, LTChar
 import spacy
 import fitz  # PyMuPDF
+import time
 
-nlp = spacy.load("en_core_web_sm")
+start = time.time()
+
+nlp = spacy.load("en_core_web_sm_with_medical_terminology")
 rightShift = 5
 
 labelLookUpTable = {
@@ -51,6 +54,15 @@ def extractInformation(text, label):
     info = [ent.text for ent in doc.ents if ent.label_ == label]
     return info
 
+def extractAllInformation(text):
+    allInformation = []
+    doc = nlp(text)
+    ner = nlp.get_pipe("ner")
+    for label in ner.labels:
+        info = (label,[ent.text for ent in doc.ents if ent.label_ == label])
+        allInformation.append(info)
+    return allInformation
+
 def transcribeAudio(audioFilePath):                                                 
     sound = AudioSegment.from_mp3(audioFilePath)
     sound.export("transcript.wav", format="wav")                                                    
@@ -82,14 +94,15 @@ def add_text_to_pdf(inputPdfPath, output_pdf_path, transcript):
     tagsAndLocations = findLocationOfAllText(inputPdfPath)
     temp_pdf_path = "temp_overlay.pdf"
     c = canvas.Canvas(temp_pdf_path, pagesize=letter)
-
+    allInformation = extractAllInformation(transcript)
+    fullInformation = ""
     for tagAndLocation in tagsAndLocations:
-        fullInformation = ""
         #for extracting the information from the transcript
-        infos = extractInformation(transcript,labelLookUpTableWrapper(tagAndLocation[0]))
-        if infos:
-            for info in infos:
-                fullInformation = fullInformation + info + " "
+        currentLabel = labelLookUpTableWrapper(tagAndLocation[0])
+        for label in allInformation:
+            if currentLabel == label[0]:
+                print(label[1][0])
+                del label[1][0]
         
         #for finding the right location
         c.drawString(tagAndLocation[1][2]+rightShift,795-tagAndLocation[1][3],fullInformation) 
@@ -114,7 +127,12 @@ def add_text_to_pdf(inputPdfPath, output_pdf_path, transcript):
     with open(output_pdf_path, "wb") as output_pdf:
         writer.write(output_pdf)
 
-userInput = input("Enter file input file name: ")
-if userInput == "":
-    userInput = "testForm1.pdf"
-add_text_to_pdf(userInput, "output_filled.pdf", transcribeAudio("transcript.mp3"))
+#userInput = input("Enter file input file name: ")
+#if userInput == "":
+#    userInput = "testForm1.pdf"
+#add_text_to_pdf(userInput, "output_filled.pdf", transcribeAudio("transcript.mp3")) #for testing with audio
+inputString = "my child's name is Aubrey Champagne, today is October 7th, and my name is Scott Champagne"
+add_text_to_pdf("testForm5.pdf", "output_filled.pdf", inputString)
+end = time.time()
+
+print(end - start)
