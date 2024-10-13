@@ -95,17 +95,14 @@ def add_text_to_pdf(inputPdfPath, output_pdf_path, transcript):
     temp_pdf_path = "temp_overlay.pdf"
     c = canvas.Canvas(temp_pdf_path, pagesize=letter)
     allInformation = extractAllInformation(transcript)
-    fullInformation = ""
+
+    #currently it will be implemented using double loop of lists. Will move to dicts some day
     for tagAndLocation in tagsAndLocations:
-        #for extracting the information from the transcript
-        currentLabel = labelLookUpTableWrapper(tagAndLocation[0])
-        for label in allInformation:
-            if currentLabel == label[0]:
-                print(label[1][0])
-                del label[1][0]
-        
-        #for finding the right location
-        c.drawString(tagAndLocation[1][2]+rightShift,795-tagAndLocation[1][3],fullInformation) 
+        for information in allInformation:
+            if information[0] == labelLookUpTableWrapper(tagAndLocation[0]):
+                c.drawString(tagAndLocation[1][2]+rightShift,795-tagAndLocation[1][3],information[1][0]) 
+                print(information[1])
+                information[1].pop(0)
     c.save()
 
 
