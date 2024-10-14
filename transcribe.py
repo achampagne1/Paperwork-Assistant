@@ -55,12 +55,11 @@ def extractInformation(text, label):
     return info
 
 def extractAllInformation(text):
-    allInformation = []
+    allInformation = {}
     doc = nlp(text)
     ner = nlp.get_pipe("ner")
     for label in ner.labels:
-        info = (label,[ent.text for ent in doc.ents if ent.label_ == label])
-        allInformation.append(info)
+        allInformation[label] = ([ent.text for ent in doc.ents if ent.label_ == label])
     return allInformation
 
 def transcribeAudio(audioFilePath):                                                 
@@ -88,21 +87,16 @@ def findLocationOfAllText(filePath):
                     allWords.append(tempList)
     return allWords
 
-
-
-def add_text_to_pdf(inputPdfPath, output_pdf_path, transcript):
+def add_text_to_pdf(inputPdfPath, output_pdf_path, allInformation):
     tagsAndLocations = findLocationOfAllText(inputPdfPath)
     temp_pdf_path = "temp_overlay.pdf"
     c = canvas.Canvas(temp_pdf_path, pagesize=letter)
-    allInformation = extractAllInformation(transcript)
 
-    #currently it will be implemented using double loop of lists. Will move to dicts some day
     for tagAndLocation in tagsAndLocations:
-        for information in allInformation:
-            if information[0] == labelLookUpTableWrapper(tagAndLocation[0]):
-                c.drawString(tagAndLocation[1][2]+rightShift,795-tagAndLocation[1][3],information[1][0]) 
-                print(information[1])
-                information[1].pop(0)
+        value = allInformation.get(labelLookUpTableWrapper(tagAndLocation[0]))
+        if value is not None:
+            c.drawString(tagAndLocation[1][2]+rightShift,795-tagAndLocation[1][3],value[0]) 
+            value.pop(0)
     c.save()
 
 
@@ -129,7 +123,7 @@ def add_text_to_pdf(inputPdfPath, output_pdf_path, transcript):
 #    userInput = "testForm1.pdf"
 #add_text_to_pdf(userInput, "output_filled.pdf", transcribeAudio("transcript.mp3")) #for testing with audio
 inputString = "my child's name is Aubrey Champagne, today is October 7th, and my name is Scott Champagne"
-add_text_to_pdf("testForm5.pdf", "output_filled.pdf", inputString)
+allInformation = extractAllInformation(inputString)
+add_text_to_pdf("testForm5.pdf", "output_filled.pdf", allInformation)
 end = time.time()
-
 print(end - start)
