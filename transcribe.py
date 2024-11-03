@@ -1,27 +1,28 @@
-import sys
-sys.path.append('/mnt/efs/python')
-
 import speech_recognition as sr
-import os
-import spacy
+from os import path
+from pydub import AudioSegment
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from PyPDF2 import PdfReader, PdfWriter
 from pdfminer.high_level import extract_pages
 from pdfminer.layout import LTTextBox, LTChar
+import spacy
 import fitz  # PyMuPDF
 import time
 
-labelLookUpTable = {
-        "name": "PERSON",
-        "location": "GPE",
-        "age": "CARDINAL",
-        "nationality": "NORP",
-        "food": "PRODUCT",
-        "date": "DATE"
-    }
+start = time.time()
 
+nlp = spacy.load("en_core_web_sm_with_medical_terminology")
 rightShift = 5
+
+labelLookUpTable = {
+    "name": "PERSON",
+    "location": "GPE",
+    "age": "CARDINAL",
+    "nationality": "NORP",
+    "food": "PRODUCT",
+    "date": "DATE"
+}
 
 def labelLookUpTableWrapper(inputString):
     inputString = inputString.lower()
@@ -53,7 +54,7 @@ def extractInformation(text, label):
     info = [ent.text for ent in doc.ents if ent.label_ == label]
     return info
 
-def extractAllInformation(text, nlp):
+def extractAllInformation(text):
     allInformation = {}
     doc = nlp(text)
     ner = nlp.get_pipe("ner")
@@ -87,11 +88,10 @@ def findLocationOfAllText(filePath):
     return allWords
 
 def add_text_to_pdf(inputPdfPath, output_pdf_path, allInformation):
-
     tagsAndLocations = findLocationOfAllText(inputPdfPath)
-    temp_pdf_path = "/mnt/efs/lambda/python/temp_overlay.pdf"
+    temp_pdf_path = "temp_overlay.pdf"
     c = canvas.Canvas(temp_pdf_path, pagesize=letter)
-    
+
     for tagAndLocation in tagsAndLocations:
         value = allInformation.get(labelLookUpTableWrapper(tagAndLocation[0]))
         if value is not None:
@@ -99,11 +99,13 @@ def add_text_to_pdf(inputPdfPath, output_pdf_path, allInformation):
             value.pop(0)
     c.save()
 
+
     reader = PdfReader(inputPdfPath)
     writer = PdfWriter()
 
 
     overlay_reader = PdfReader(temp_pdf_path)
+
 
     for i in range(len(reader.pages)):
         page = reader.pages[i]
@@ -116,18 +118,12 @@ def add_text_to_pdf(inputPdfPath, output_pdf_path, allInformation):
     with open(output_pdf_path, "wb") as output_pdf:
         writer.write(output_pdf)
 
-def lambda_handler(event, context):
-    start = time.time()
-
-    #nlp = spacy.load("en_core_web_sm_with_medical_terminology") fix this later
-    nlp = spacy.load("en_core_web_sm")
-
-    #userInput = input("Enter file input file name: ")
-    #if userInput == "":
-    #    userInput = "testForm1.pdf"
-    #add_text_to_pdf(userInput, "output_filled.pdf", transcribeAudio("transcript.mp3")) #for testing with audio
-    inputString = "my child's name is Aubrey Champagne, today is October 7th, and my name is Scott Champagne"
-    allInformation = extractAllInformation(inputString, nlp)
-    add_text_to_pdf("/mnt/efs/lambda/python/testForm5.pdf", "/mnt/efs/lambda/python/output_filled.pdf", allInformation)
-    end = time.time()
-    return (end - start)
+#userInput = input("Enter file input file name: ")
+#if userInput == "":
+#    userInput = "testForm1.pdf"
+#add_text_to_pdf(userInput, "output_filled.pdf", transcribeAudio("transcript.mp3")) #for testing with audio
+inputString = "my child's name is Aubrey Champagne, today is October 7th, and my name is Scott Champagne"
+allInformation = extractAllInformation(inputString)
+add_text_to_pdf("testForm5.pdf", "output_filled.pdf", allInformation)
+end = time.time()
+print(end - start)
