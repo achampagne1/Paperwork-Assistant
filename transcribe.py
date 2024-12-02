@@ -89,22 +89,12 @@ def findLocationOfAllText(fileStream):
         if 'lines' in block:
             for line in block['lines']:
                 for span in line['spans']:
-                    tempList = (span['text'],span['bbox'])
-                    allWords.append(tempList)
-    return allWords
-
-def add_text_to_pdf(fileStream, output_pdf_path, allInformation):
-
-    tagsAndLocations = findLocationOfAllText(fileStream)
-    temp_pdf_path = "/mnt/efs/lambda/python/temp_overlay.pdf"
-    c = canvas.Canvas(temp_pdf_path, pagesize=letter)
-    
-    for tagAndLocation in tagsAndLocations:
-        value = allInformation.get(labelLookUpTableWrapper(tagAndLocation[0]))
-        if value is not None:
-import sys
+                    tempimport sys
 sys.path.append('/mnt/efs/python')
 
+import urllib.request
+import http.client
+import socket
 import io
 import json
 import urllib.parse
@@ -120,6 +110,11 @@ from pdfminer.high_level import extract_pages
 from pdfminer.layout import LTTextBox, LTChar
 import fitz  # PyMuPDF
 import time
+from pydub import AudioSegment  
+from pydub.utils import which
+
+AudioSegment.converter = "/opt/bin/ffmpeg"
+AudioSegment.ffprobe = "/opt/bin/ffprobe"
 
 labelLookUpTable = {
         "name": "PERSON",
@@ -133,7 +128,7 @@ labelLookUpTable = {
 rightShift = 5
 
 s3 = boto3.client('s3')
-start = time.time()
+
 
 def labelLookUpTableWrapper(inputString):
     inputString = inputString.lower()
@@ -173,16 +168,17 @@ def extractAllInformation(text, nlp):
         allInformation[label] = ([ent.text for ent in doc.ents if ent.label_ == label])
     return allInformation
 
-def transcribeAudio(audioFilePath):                                                 
-    sound = AudioSegment.from_mp3(audioFilePath)
-    sound.export("transcript.wav", format="wav")                                                    
-    AUDIO_FILE = "transcript.wav"
-                                      
-    r = sr.Recognizer()
-    with sr.AudioFile(AUDIO_FILE) as source:
-        audio = r.record(source)                 
+def transcribeAudio(audioData):
+    audioSegment = AudioSegment.from_file(audioData)
+    pcmStream = io.BytesIO()
+    audioSegment.set_frame_rate(16000).set_channels(1).export(pcmStream, format="wav", codec="pcm_s16le")
+    pcmStream.seek(0)
 
-        return r.recognize_google(audio)
+    r = sr.Recognizer()
+    with sr.AudioFile(pcmStream) as source:
+        audio = r.record(source)
+
+    return r.recognize_google(audio)
 
 def findLocationOfAllText(fileStream):
     allWords = []
@@ -229,7 +225,7 @@ def add_text_to_pdf(fileStream, output_pdf_path, allInformation):
     return outputBuffer
 
 def generateLink(bucket, key):
-    expiration = 60 
+    expiration = 10
 
     try:
         # Generate a pre-signed URL
@@ -255,23 +251,22 @@ def generateLink(bucket, key):
 def lambda_handler(event, context):
     body = json.loads(event.get("body"))
     bucket = body['bucket']
-    key = urllib.parse.unquote_plus(body['object'], encoding='utf-8')
-    response = s3.get_object(Bucket=bucket,Key=key)
-    fileStream = io.BytesIO(response['Body'].read())
+    fileKey = urllib.parse.unquote_plus(body['file'], encoding='utf-8')
+    audioKey = urllib.parse.unquote_plus(body['audio'], encoding='utf-8')
+    fileResponse = s3.get_object(Bucket=bucket,Key=fileKey)
+    audioResponse = s3.get_object(Bucket=bucket,Key=audioKey)
+    fileStream = io.BytesIO(fileResponse['Body'].read())
+    audioStream = io.BytesIO(audioResponse['Body'].read())
     #nlp = spacy.load("en_core_web_sm_with_medical_terminology") fix this later
     nlp = spacy.load("en_core_web_sm")
 
-    #userInput = input("Enter file input file name: ")
-    #if userInput == "":
-    #    userInput = "testForm1.pdf"
     #add_text_to_pdf(userInput, "output_filled.pdf", transcribeAudio("transcript.mp3")) #for testing with audio
-    inputString = "my child's name is Aubrey Champagne, today is October 7th, and my name is Scott Champagne"
-    allInformation = extractAllInformation(inputString, nlp)
+    #inputString = "my child's name is Aubrey Champagne, today is October 7th, and my name is Scott Champagne"
+    transcript = transcribeAudio(audioStream)
+    allInformation = extractAllInformation(transcript, nlp)
     output = add_text_to_pdf(fileStream, "/mnt/efs/lambda/python/temp_overlay.pdf", allInformation)
     
-    key = key[6:len(key)-4]
-    outputPath = "output/"+key+"_output.pdf"
+    fileKey = fileKey[6:len(fileKey)-4]
+    outputPath = "output/"+fileKey+"_output.pdf"
     s3.upload_fileobj(output,bucket,outputPath)
     return generateLink(bucket, outputPath)
-    end = time.time()
-    return (end - start)
