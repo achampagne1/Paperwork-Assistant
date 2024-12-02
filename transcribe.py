@@ -1,28 +1,43 @@
+import sys
+sys.path.append('/mnt/efs/python')
+
+import urllib.request
+import http.client
+import socket
+import io
+import json
+import urllib.parse
+import boto3
+from botocore.exceptions import ClientError
 import speech_recognition as sr
-from os import path
-from pydub import AudioSegment
+import os
+import spacy
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from PyPDF2 import PdfReader, PdfWriter
 from pdfminer.high_level import extract_pages
 from pdfminer.layout import LTTextBox, LTChar
-import spacy
 import fitz  # PyMuPDF
 import time
+from pydub import AudioSegment  
+from pydub.utils import which
 
-start = time.time()
-
-nlp = spacy.load("en_core_web_sm_with_medical_terminology")
-rightShift = 5
+AudioSegment.converter = "/opt/bin/ffmpeg"
+AudioSegment.ffprobe = "/opt/bin/ffprobe"
 
 labelLookUpTable = {
-    "name": "PERSON",
-    "location": "GPE",
-    "age": "CARDINAL",
-    "nationality": "NORP",
-    "food": "PRODUCT",
-    "date": "DATE"
-}
+        "name": "PERSON",
+        "location": "GPE",
+        "age": "CARDINAL",
+        "nationality": "NORP",
+        "food": "PRODUCT",
+        "date": "DATE"
+    }
+
+rightShift = 5
+
+s3 = boto3.client('s3')
+
 
 def labelLookUpTableWrapper(inputString):
     inputString = inputString.lower()
@@ -54,7 +69,7 @@ def extractInformation(text, label):
     info = [ent.text for ent in doc.ents if ent.label_ == label]
     return info
 
-def extractAllInformation(text):
+def extractAllInformation(text, nlp):
     allInformation = {}
     doc = nlp(text)
     ner = nlp.get_pipe("ner")
@@ -62,20 +77,21 @@ def extractAllInformation(text):
         allInformation[label] = ([ent.text for ent in doc.ents if ent.label_ == label])
     return allInformation
 
-def transcribeAudio(audioFilePath):                                                 
-    sound = AudioSegment.from_mp3(audioFilePath)
-    sound.export("transcript.wav", format="wav")                                                    
-    AUDIO_FILE = "transcript.wav"
-                                      
+def transcribeAudio(audioData):
+    audioSegment = AudioSegment.from_file(audioData)
+    pcmStream = io.BytesIO()
+    audioSegment.set_frame_rate(16000).set_channels(1).export(pcmStream, format="wav", codec="pcm_s16le")
+    pcmStream.seek(0)
+
     r = sr.Recognizer()
-    with sr.AudioFile(AUDIO_FILE) as source:
-        audio = r.record(source)                 
+    with sr.AudioFile(pcmStream) as source:
+        audio = r.record(source)
 
-        return r.recognize_google(audio)
+    return r.recognize_google(audio)
 
-def findLocationOfAllText(filePath):
+def findLocationOfAllText(fileStream):
     allWords = []
-    pdfDocument = fitz.open(filePath)
+    pdfDocument = fitz.open("pdf", fileStream)
     page = pdfDocument.load_page(0)
     textInstances = page.get_text("dict")
 
@@ -87,11 +103,12 @@ def findLocationOfAllText(filePath):
                     allWords.append(tempList)
     return allWords
 
-def add_text_to_pdf(inputPdfPath, output_pdf_path, allInformation):
-    tagsAndLocations = findLocationOfAllText(inputPdfPath)
-    temp_pdf_path = "temp_overlay.pdf"
-    c = canvas.Canvas(temp_pdf_path, pagesize=letter)
+def add_text_to_pdf(fileStream, output_pdf_path, allInformation):
 
+    tagsAndLocations = findLocationOfAllText(fileStream)
+    temp_pdf_path = "/mnt/efs/lambda/python/temp_overlay.pdf"
+    c = canvas.Canvas(temp_pdf_path, pagesize=letter)
+    
     for tagAndLocation in tagsAndLocations:
         value = allInformation.get(labelLookUpTableWrapper(tagAndLocation[0]))
         if value is not None:
@@ -99,31 +116,66 @@ def add_text_to_pdf(inputPdfPath, output_pdf_path, allInformation):
             value.pop(0)
     c.save()
 
-
-    reader = PdfReader(inputPdfPath)
-    writer = PdfWriter()
-
-
+    reader = PdfReader(fileStream)
     overlay_reader = PdfReader(temp_pdf_path)
-
+    writer = PdfWriter()
 
     for i in range(len(reader.pages)):
         page = reader.pages[i]
         overlay_page = overlay_reader.pages[i]
 
+        # Merge overlay page onto the main page
         page.merge_page(overlay_page)
         writer.add_page(page)
 
+    outputBuffer = io.BytesIO()
+    writer.write(outputBuffer)
+    outputBuffer.seek(0)
+    return outputBuffer
 
-    with open(output_pdf_path, "wb") as output_pdf:
-        writer.write(output_pdf)
+def generateLink(bucket, key):
+    expiration = 10
 
-#userInput = input("Enter file input file name: ")
-#if userInput == "":
-#    userInput = "testForm1.pdf"
-#add_text_to_pdf(userInput, "output_filled.pdf", transcribeAudio("transcript.mp3")) #for testing with audio
-inputString = "my child's name is Aubrey Champagne, today is October 7th, and my name is Scott Champagne"
-allInformation = extractAllInformation(inputString)
-add_text_to_pdf("testForm5.pdf", "output_filled.pdf", allInformation)
-end = time.time()
-print(end - start)
+    try:
+        # Generate a pre-signed URL
+        url = s3.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': bucket, 'Key': key},
+            ExpiresIn=expiration
+        )
+        
+        # Return the URL
+        return {
+            'statusCode': 200,
+            'body': json.dumps({'url': url})
+        }
+        
+    except Exception as e:
+        print(f"Error generating pre-signed URL: {e}")
+        return {
+            'statusCode': 500,
+            'body': json.dumps({'error': 'Failed to generate URL'})
+        }
+
+def lambda_handler(event, context):
+    body = json.loads(event.get("body"))
+    bucket = body['bucket']
+    fileKey = urllib.parse.unquote_plus(body['file'], encoding='utf-8')
+    audioKey = urllib.parse.unquote_plus(body['audio'], encoding='utf-8')
+    fileResponse = s3.get_object(Bucket=bucket,Key=fileKey)
+    audioResponse = s3.get_object(Bucket=bucket,Key=audioKey)
+    fileStream = io.BytesIO(fileResponse['Body'].read())
+    audioStream = io.BytesIO(audioResponse['Body'].read())
+    #nlp = spacy.load("en_core_web_sm_with_medical_terminology") fix this later
+    nlp = spacy.load("en_core_web_sm")
+
+    #add_text_to_pdf(userInput, "output_filled.pdf", transcribeAudio("transcript.mp3")) #for testing with audio
+    #inputString = "my child's name is Aubrey Champagne, today is October 7th, and my name is Scott Champagne"
+    transcript = transcribeAudio(audioStream)
+    allInformation = extractAllInformation(transcript, nlp)
+    output = add_text_to_pdf(fileStream, "/mnt/efs/lambda/python/temp_overlay.pdf", allInformation)
+    
+    fileKey = fileKey[6:len(fileKey)-4]
+    outputPath = "output/"+fileKey+"_output.pdf"
+    s3.upload_fileobj(output,bucket,outputPath)
+    return generateLink(bucket, outputPath)
