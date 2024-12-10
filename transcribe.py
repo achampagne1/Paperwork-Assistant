@@ -38,6 +38,10 @@ rightShift = 5
 
 s3 = boto3.client('s3')
 
+def getIOBytes(input, bucket):
+    key = urllib.parse.unquote_plus(input, encoding='utf-8')
+    fileResponse = s3.get_object(Bucket=bucket,Key=key)
+    return io.BytesIO(fileResponse['Body'].read())
 
 def labelLookUpTableWrapper(inputString):
     inputString = inputString.lower()
@@ -109,15 +113,19 @@ def add_text_to_pdf(fileStream, output_pdf_path, allInformation):
     temp_pdf_path = "/mnt/efs/lambda/python/temp_overlay.pdf"
     c = canvas.Canvas(temp_pdf_path, pagesize=letter)
     
+
     for tagAndLocation in tagsAndLocations:
         value = allInformation.get(labelLookUpTableWrapper(tagAndLocation[0]))
-        if value is not None:
+        if value:
             c.drawString(tagAndLocation[1][2]+rightShift,795-tagAndLocation[1][3],value[0]) 
             value.pop(0)
     c.save()
 
-    reader = PdfReader(fileStream)
     overlay_reader = PdfReader(temp_pdf_path)
+    if len(overlay_reader.pages)==0:
+        return 0
+
+    reader = PdfReader(fileStream)   
     writer = PdfWriter()
 
     for i in range(len(reader.pages)):
@@ -159,13 +167,9 @@ def generateLink(bucket, key):
 
 def lambda_handler(event, context):
     body = json.loads(event.get("body"))
-    bucket = body['bucket']
-    fileKey = urllib.parse.unquote_plus(body['file'], encoding='utf-8')
-    audioKey = urllib.parse.unquote_plus(body['audio'], encoding='utf-8')
-    fileResponse = s3.get_object(Bucket=bucket,Key=fileKey)
-    audioResponse = s3.get_object(Bucket=bucket,Key=audioKey)
-    fileStream = io.BytesIO(fileResponse['Body'].read())
-    audioStream = io.BytesIO(audioResponse['Body'].read())
+    fileStream = getIOBytes(body['file'], body['bucket'])
+    audioStream = getIOBytes(body['audio'], body['bucket'])
+
     #nlp = spacy.load("en_core_web_sm_with_medical_terminology") fix this later
     nlp = spacy.load("en_core_web_sm")
 
@@ -174,7 +178,9 @@ def lambda_handler(event, context):
     transcript = transcribeAudio(audioStream)
     allInformation = extractAllInformation(transcript, nlp)
     output = add_text_to_pdf(fileStream, "/mnt/efs/lambda/python/temp_overlay.pdf", allInformation)
-    
+    if output == 0:
+        return "NO INFORMATION GIVEN TO TRANSCRIBE"
+
     fileKey = fileKey[6:len(fileKey)-4]
     outputPath = "output/"+fileKey+"_output.pdf"
     s3.upload_fileobj(output,bucket,outputPath)
